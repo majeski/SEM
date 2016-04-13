@@ -1,0 +1,204 @@
+\documentclass[12pt]{minimal}
+\usepackage[a4paper, total={6in, 10.5in}]{geometry}
+\usepackage[11pt]{moresize}
+\usepackage[utf8]{inputenc}
+\usepackage{polski}
+\usepackage[polish]{babel}
+\usepackage{semantic}
+
+\reservestyle{\command}{\textbf}
+\command{skip,if,else,then,break,repeat,until,escape,true,false}
+
+\begin{document}
+
+{\Huge Semantyka dużych kroków}
+\newline\newline
+Konfiguracja początkowa: $\texttt{BExpr} \times \texttt{Instr} \times \texttt{State}$ \newline
+Konfiguracja końcowa: $\texttt{State} \cup (\texttt{State} \times \{\texttt{brk}, \texttt{esc}\})$ \newline
+\newline
+$e \in \texttt{Expr}$ \newline
+$b, cond \in \texttt{BExpr}$ \newline
+$s, s', s'' \in \texttt{State}$ \newline
+$\texttt{end} \in \{\texttt{brk}, \texttt{esp}\}$ \newline
+$S, S_1, S_2 \in \texttt{Instr}$ \newline
+$|[\textbf{true}|] = tt$ \newline
+$|[\textbf{false}|] = ff$ \newline
+\newline
+$cond = \texttt{false}$ dla wyrażeń poza pętlą
+
+\vspace{5mm}
+\inference{}{cond |- \textbf{skip}, s --> s}
+
+\vspace{5mm}
+\inference{|[e|]s = n}{cond |- x:=e, s --> s[x->n]}
+
+\vspace{5mm}
+\inference
+{cond |- S_1, s --> s' \quad cond |- S_2, s' --> s''}
+{cond |- S_1;S_2, s --> s''}
+
+\vspace{5mm}
+\inference
+{cond |- S_1, s --> s', \texttt{end}}
+{cond |- S_1;S_2, s --> s', \texttt{end}}
+
+\vspace{5mm}
+\inference
+{cond |- S_1, s --> s' \quad cond |- S_2, s' --> s'', \texttt{end}}
+{cond |- S_1;S_2, s --> s'', \texttt{end}}
+
+\vspace{5mm}
+\inference
+{|[b|]s = tt \quad cond |- S_1, s --> s'}
+{cond |- \textbf{if}~b~\textbf{then}~S_1~\textbf{else}~S_2, s --> s'}
+
+\vspace{5mm}
+\inference
+{|[b|]s = ff \quad cond |- S_2, s --> s'}
+{cond |- \textbf{if}~b~\textbf{then}~S_1~\textbf{else}~S_2, s --> s'}
+
+\vspace{5mm}
+\inference
+{|[b|]s = tt \quad cond |- S_1, s --> s', \texttt{end}}
+{cond |- \textbf{if}~b~\textbf{then}~S_1~\textbf{else}~S_2, s --> s', \texttt{end}}
+
+\vspace{5mm}
+\inference
+{|[b|]s = ff \quad cond |- S_2, s --> s', \texttt{end}}
+{cond |- \textbf{if}~b~\textbf{then}~S_1~\textbf{else}~S_2, s --> s', \texttt{end}}
+
+\vspace{5mm}
+\inference
+{b |- S, s --> s' \quad cond |- \textbf{repeat}~S~\textbf{until}~b, s' --> s''}
+{cond |- \textbf{repeat}~S~\textbf{until}~b, s --> s''}
+
+\vspace{5mm}
+\inference
+{b |- S, s --> s' \quad cond |- \textbf{repeat}~S~\textbf{until}~b, s' --> s'', \texttt{esc}}
+{cond |- \textbf{repeat}~S~\textbf{until}~b, s --> s'', \texttt{esc}}
+
+\vspace{5mm}
+\inference
+{b |- S, s --> s', \texttt{brk}}
+{cond |- \textbf{repeat}~S~\textbf{until}~b, s --> s'}
+
+\vspace{5mm}
+\inference
+{b |- S, s --> s', \texttt{esc}}
+{cond |- \textbf{repeat}~S~\textbf{until}~b, s --> s', \texttt{esc}}
+
+\vspace{5mm}
+\inference{}{cond |- \<break>, s --> s, \texttt{brk}}
+
+\vspace{5mm}
+\inference{}{cond |- \<escape>, s --> s, \texttt{esc}}
+
+% -------------------------------------------------------
+
+\vspace{20mm}
+
+{\Huge Semantyka małych kroków}
+\newline\newline
+Konfiguracja:
+$(\texttt{BExpr} \times \texttt{Instr} \times \texttt{State}) 
+\cup (\texttt{State} \times \{\texttt{brk}, \texttt{esc}\})
+\cup \texttt{State}$ \newline
+Rozszerzamy składnię $\texttt{Instr}$ poleceniami niedostępnymi dla programisty:\newline
+$\texttt{Instr} ::= ...~|~\textbf{loop}~S_1~\textbf{with}~S_2~\textbf{until}~b~|~\textbf{break!}~|~\textbf{escape!}$\newline\newline
+$e \in \texttt{Expr}$ \newline
+$b, cond \in \texttt{BExpr}$ \newline
+$s, s' \in \texttt{State}$ \newline
+$\texttt{end} \in \{\texttt{brk}, \texttt{esp}\}$ \newline
+$S, S_1, S_2, S_1', S_2' \in \texttt{Instr}$ \newline
+$|[\textbf{true}|] = tt$ \newline
+$|[\textbf{false}|] = ff$ \newline
+\newline
+$cond = \texttt{false}$ dla wyrażeń poza pętlą
+
+% skip
+\vspace{5mm}
+\inference{}{cond |- \textbf{skip}, s => s}
+
+% :=
+\vspace{5mm}
+\inference{|[e|]s = n}{cond |- x:=e, s => s[x->n]}
+
+% ;
+\vspace{5mm}
+\inference
+{cond |- S_1, s => s'}
+{cond |- S_1;S_2, s => S_2, s'}
+
+\vspace{5mm}
+\inference
+{cond |- S_1, s => S_1', s'}
+{cond |- S_1;S_2, s => S_1';S_2, s'}
+
+\vspace{5mm}
+\inference
+{cond |- S_1, s => s', \texttt{end}}
+{cond |- S_1;S_2, s => s', \texttt{end}}
+
+% if
+\vspace{5mm}
+\inference
+{|[b|]s = tt}
+{cond |- \textbf{if}~b~\textbf{then}~S_1~\textbf{else}~S_2, s => S_1, s}
+
+\vspace{5mm}
+\inference
+{|[b|]s = ff}
+{cond |- \textbf{if}~b~\textbf{then}~S_1~\textbf{else}~S_2, s => S_2, s}
+
+% repeat
+\vspace{5mm}
+\inference
+{}
+{cond |- \textbf{repeat}~S~\textbf{until}~b, s => \textbf{loop}~S~\textbf{with}~S~\textbf{until}~b, s}
+
+% loop
+\vspace{5mm}
+\inference
+{b |- S_1, s => S_1', s'}
+{cond |- \textbf{loop}~S_1~\textbf{with}~S_2~\textbf{until}~b, s => \textbf{loop}~S_1'~\textbf{with}~S_2~\textbf{until}~b, s'}
+
+\vspace{5mm}
+\inference
+{b |- S_1, s => s'}
+{cond |- \textbf{loop}~S_1~\textbf{with}~S_2~\textbf{until}~b, s => \textbf{loop}~S_2~\textbf{with}~S_2~\textbf{until}~b, s'}
+
+\vspace{5mm}
+\inference
+{b |- S_1, s => s', \texttt{brk}}
+{cond |- \textbf{loop}~S_1~\textbf{with}~S_2~\textbf{until}~b, s => s'}
+
+\vspace{5mm}
+\inference
+{b |- S_1, s => s', \texttt{esc}}
+{cond |- \textbf{loop}~S_1~\textbf{with}~S_2~\textbf{until}~b, s => s', \texttt{esc}}
+
+% break
+\vspace{5mm}
+\inference
+{}
+{cond |- \textbf{break}, s => \textbf{if}~cond~\textbf{then}~\textbf{break!}~\textbf{else}~\textbf{skip}}
+
+% escape
+\vspace{5mm}
+\inference
+{}
+{cond |- \textbf{escape}, s => \textbf{if}~cond~\textbf{then}~\textbf{escape!}~\textbf{else}~\textbf{skip}}
+
+% break!
+\vspace{5mm}
+\inference
+{}
+{cond |- \textbf{break!}, s => s, \texttt{brk}}
+
+% break!
+\vspace{5mm}
+\inference
+{}
+{cond |- \textbf{escape!}, s => s, \texttt{esc}}
+
+\end{document}

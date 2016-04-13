@@ -1,0 +1,105 @@
+\documentclass[12pt]{minimal}
+\usepackage[a4paper, total={7in, 10.5in}]{geometry}
+\usepackage[11pt]{moresize}
+\usepackage[utf8]{inputenc}
+\usepackage{polski}
+\usepackage[polish]{babel}
+\usepackage{semantic}
+\usepackage{stmaryrd}
+
+\begin{document}
+
+Michał Majewski, 347108
+\newline
+Wywołanie funkcji dostaje w argumentach store oraz trójkę (lokacja argumentu, lokacja kopii argumentu, flaga w jakim jesteśmy trybie). Instrukcje też otrzymują między innymi taką trójkę. Domyślna flaga to \textit{VAL} (przekazywanie przez wartość), domyślne lokacje to \textbf{??}, a używanie takich lokacji powoduje błąd. Zakładam, że błąd propaguje się przez wszystkie instrukcje.
+\newline
+\newline
+%
+%
+$\textbf{Env} = \textbf{VAL} -> \textbf{Loc}$ \newline
+$\textbf{PEnv} = \textbf{PVAL} -> \textbf{Proc}$ \newline
+$\textbf{Proc} = \textbf{Store} -> (\textbf{Loc} \times \textbf{Loc} \times \{\textit{IO}, \textit{VAL}\}) -> \textbf{Store}$ \newline
+$\textbf{Store} = \textbf{Loc} -> \textbf{Int}$ \newline
+$\textbf{Loc} = \{1, 2, 3, \ldots \} \cup \{\textbf{??}\}$ \newline
+$\textbf{alloc} = \textbf{Store} -> \textbf{Loc}$ \newline
+$\textbf{save} = \textbf{Loc} -> \textbf{Loc} -> \textbf{Store} -> \textbf{Store}$ \newline
+\newline
+%
+%
+$\mathcal{N}|[\_|].\texttt{Num} -> \textbf{Int}$ \newline
+$\mathcal{E}|[\_|].\texttt{Expr} -> \textbf{Env} -> \textbf{Store} -> \textbf{Int}$ \newline
+$\mathcal{D}|[\_|].\texttt{Dec} -> \textbf{PEnv} -> \textbf{Env} -> \textbf{Store} -> (\textbf{PEnv} \times \textbf{Env} \times \textbf{Store})$ \newline
+$\mathcal{S}|[\_|].\texttt{Instr} -> \textbf{PEnv} -> \textbf{Env} -> \textbf{Store} -> (\textbf{Loc} \times \textbf{Loc} \times \{\textit{IO}, \textit{VAL}\}) -> (\textbf{Store} \times \{\textit{IO}, \textit{VAL}\})$ \newline
+\newline
+%
+%
+$\rho, \rho' \in \textbf{Env}$\newline
+$\pi, \pi' \in \textbf{PEnv}$\newline
+$s, s', s'' \in \textbf{Store}$\newline
+$l, l', l_{tmp}, l'_{tmp} \in \textbf{Loc}$\newline
+$m, m' \in \{\textit{IO}, \textit{VAL}\}$\newline
+$\rho_p \in (\textbf{Loc} \times \textbf{Loc} \times \{\textit{IO}, \textit{VAL}\})$\newline
+\newline
+%
+%
+\textbf{save} = $\lambda l.~\lambda l_{tmp}.~\lambda s.~s[l -> v]$\newline
+\indent where $v = s~l_{tmp}$\newline
+\newline
+%
+%
+$\mathcal{E}|[$n$|]$ = $\lambda \rho.~\lambda s.~\mathcal{N}|[$n$|]$\newline
+$\mathcal{E}|[x|]$ = $\lambda \rho.~\lambda s.~s~l$\newline
+\indent where $l = \rho~x $\newline
+$\mathcal{E}|[E_1 + E_2|]$ = $\lambda \rho.~\lambda s.~e_1 + e_2$ \newline
+\indent where\newline
+\indent\indent $e_1 = \mathcal{E}|[E_1|]~\rho~s$\newline
+\indent\indent $e_2 = \mathcal{E}|[E_2|]~\rho~s$\newline
+\newline
+%
+%
+% int x := E
+$\mathcal{D}|[\texttt{int}~x := E|] = \lambda \pi.~\lambda \rho.~\lambda s.~(\pi, \rho[x -> l], s[l -> \mathcal{E}|[E|]~\rho~s])$\newline
+\indent where $l =~\textbf{alloc}~s$ \newline
+% D1;D2
+$\mathcal{D}|[D_1;D_2|] = \lambda \pi.~\lambda \rho.~\lambda s.~\mathcal{D}|[D_2|]~\pi'~\rho'~s'$\newline
+\indent where $(\pi', \rho', s') = \mathcal{D}|[D_1|]~\pi~\rho~s $\newline
+% proc p(x) I
+$\mathcal{D}|[$\texttt{proc} $p(x)~I|] = \lambda \pi.~\lambda \rho.~\lambda s.~(\pi[p -> $fix$~P], \rho, s)$\newline
+\indent where $P = \lambda P'.~\lambda s'.~\lambda (l, l_{tmp}, m).~$\newline
+\indent let $(s'', m') = \mathcal{S}|[I|]~\pi[p -> P']~\rho[x -> l_{tmp}]~s'~(l, l_{tmp}, m)$ in\newline
+\indent \indent if $m' = \textit{VAL}$ then $s''$\newline
+\indent \indent else $\textbf{save}~l~l_{tmp}~s''$\newline
+\newline
+%
+%
+% skip
+$\mathcal{S}|[$\texttt{skip}$|]$ = $\lambda \pi.~\lambda \rho.~\lambda s.~\lambda (l, l_{tmp}, m).~(s, m)$\newline
+% cio
+$\mathcal{S}|[$\texttt{cio}$|]$ = $\lambda \pi.~\lambda \rho.~\lambda s.~\lambda (l, l_{tmp}, m).~(s, \textit{IO})$\newline
+% cbv
+$\mathcal{S}|[$\texttt{cbv}$|]$ = $\lambda \pi.~\lambda \rho.~\lambda s.~\lambda (l, l_{tmp}, m).$\newline
+\indent if $m = \textit{VAL}$ then $(s, \textit{VAL})$ \newline
+\indent else $(\textbf{save}~l~l_{tmp}~s, \textit{VAL})$\newline
+\newline
+% x := E
+$\mathcal{S}|[x := E|]$ = $\lambda \pi.~\lambda \rho.~\lambda s.~\lambda (l, l_{tmp}, m).~(s[l' -> \mathcal{E}|[E|]~\rho~s], m)$\newline
+\indent where $l' = \rho~x$\newline
+% S1;S2
+$\mathcal{S}|[I_1;I_2|]$ = $\lambda \pi.~\lambda \rho.~\lambda s.~\lambda (l, l_{tmp}, m).~\mathcal{S}|[I_2|]~\pi~\rho~s'~(l, l_{tmp}, m')$\newline
+\indent where $(s', m') = \mathcal{S}|[I_1|]~\pi~\rho~s~(l, l_{tmp}, m)$\newline
+% if E = 0 then S1 else S2
+$\mathcal{S}|[$\texttt{if} $E = 0$ \texttt{then} $I_1$ \texttt{else} $I_2$ \texttt{fi}$|] = \lambda \pi.~\lambda \rho.~\lambda s.~\lambda \rho_p.$\newline
+\indent let~$v = \mathcal{E}|[E|]~\rho~s$~in\newline
+\indent\indent if $v = 0$ then $\mathcal{S}|[I_1|]~\pi~\rho~s~\rho_p$\newline
+\indent\indent else $\mathcal{S}|[I_2|]~\pi~\rho~s~\rho_p$\newline
+% begin D; I end
+$\mathcal{S}|[$\texttt{begin} $D;I$ \texttt{end}$|] = \lambda \pi.~\lambda \rho.~\lambda s.~\lambda \rho_p.~\mathcal{S}|[I|]~\pi'~\rho'~s'~\rho_p$\newline
+\indent where $(\pi', \rho', s') = \mathcal{D}|[D|]~\pi~\rho~s$\newline
+% call p(x)
+$\mathcal{S}|[\texttt{call}~p(x)|] = \lambda \pi.~\lambda \rho.~\lambda s.~\lambda (l, l_{tmp}, m).~(P~s[l'_{tmp} -> v]~(l', l'_{tmp}, \textit{VAL}), m)$\newline
+\indent where\newline
+\indent\indent$v = \mathcal{E}|[x|]~\rho~s$\newline
+\indent\indent$l' = \rho~x$\newline
+\indent\indent$l'_{tmp} = \textbf{alloc}~s$\newline
+\indent\indent$P = \pi~p$
+\end{document}
